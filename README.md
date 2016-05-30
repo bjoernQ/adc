@@ -11,6 +11,12 @@ More features to come.
 
 It has been used on devices running Lollipop and better. On older devices not all features might work as expected.
 
+# Installation
+
+The plugin is available from the plugins repository at https://plugins.jetbrains.com/plugin/8377?pr=androidstudio
+
+Just open _Settings_ and choose _Plugins_, _Browse repositories_ and search for _Android Device Controller_
+
 ## License
 
 ```
