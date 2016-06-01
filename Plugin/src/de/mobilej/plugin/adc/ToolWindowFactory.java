@@ -16,11 +16,13 @@ package de.mobilej.plugin.adc;
 import com.android.ddmlib.*;
 import com.android.tools.idea.ddms.EdtExecutor;
 import com.android.tools.idea.ddms.adb.AdbService;
+import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.monitor.AndroidToolWindowFactory;
 import com.google.common.io.LineReader;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.intellij.facet.ProjectFacetManager;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -37,6 +39,7 @@ import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
+import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -46,9 +49,8 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.ResourceBundle;
-import java.util.Vector;
+import java.util.*;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -86,6 +88,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
     private ComboBox devices;
     private AndroidDebugBridge adBridge;
     private JButton inputOnDeviceButton;
+    private JButton clearDataButton;
 
 
     private class StringShellOutputReceiver implements IShellOutputReceiver {
@@ -106,7 +109,6 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
         @Override
         public void flush() {
-
         }
 
         @Override
@@ -136,7 +138,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
     private ActionListener deviceSelectedListener = e -> updateFromDevice();
 
     private JBCheckBox showLayoutBounds;
-    private ComboBox localeCHooser;
+    private ComboBox localeChooser;
     private boolean userAction = false;
     private JButton goToActivityButton;
 
@@ -145,6 +147,10 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
     // Create the tool window content.
     public void createToolWindowContent(@NotNull final Project project, @NotNull final ToolWindow toolWindow) {
+        ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
+        JPanel framePanel = createPanel(project);
+        disableAll();
+
         final File adb = AndroidSdkUtils.getAdb(project);
         if (adb == null) {
             return;
@@ -176,9 +182,12 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
             }
         }, EdtExecutor.INSTANCE);
 
+        Content content = contentFactory.createContent(framePanel, "", false);
+        toolWindow.getContentManager().addContent(content);
+    }
 
-        ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
-
+    @NotNull
+    private JPanel createPanel(@NotNull Project project) {
         // Create Panel and Content
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
@@ -214,14 +223,14 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         });
 
 
-        localeCHooser = new ComboBox(LOCALES);
+        localeChooser = new ComboBox(LOCALES);
         c.gridx=0;
         c.gridy=2;
         c.gridwidth=2;
-        panel.add(localeCHooser, c);
+        panel.add(localeChooser, c);
 
-        localeCHooser.addActionListener(e -> {
-            final LocaleData ld = (LocaleData) localeCHooser.getSelectedItem();
+        localeChooser.addActionListener(e -> {
+            final LocaleData ld = (LocaleData) localeChooser.getSelectedItem();
             if(ld==null){
                 return;
             }
@@ -280,7 +289,6 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         }, resourceBundle.getString("setting.values.title"), false, null));
 
 
-
         inputOnDeviceButton = new JButton(resourceBundle.getString("button.input_on_device"));
         c.gridx=0;
         c.gridy=4;
@@ -291,27 +299,49 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
             final String text2send = Messages.showMultilineInputDialog(project, resourceBundle.getString("send_text.message"), resourceBundle.getString("send_text.title"),"",Messages.getQuestionIcon(), null);
 
             if(text2send!=null) {
-                ProgressManager.getInstance().runProcessWithProgressSynchronously(new Runnable() {
-                    @Override
-                    public void run() {
-                        ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
-                        userAction = true;
-                        String escaped = text2send.replace("\\", "\\\\").replace("\"", "\\");
-                        executeShellCommand("input text \"" + escaped + "\"", false);
-                        userAction = false;
-                    }
+                ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
+                    ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
+                    userAction = true;
+                    String escaped = text2send.replace("\\", "\\\\").replace("\"", "\\");
+                    executeShellCommand("input text \"" + escaped + "\"", false);
+                    userAction = false;
                 }, resourceBundle.getString("setting.values.title"), false, null);
             }
         });
 
+        clearDataButton = new JButton(resourceBundle.getString("button.clear_data"));
+        c.gridx=0;
+        c.gridy=5;
+        c.gridwidth=2;
+        panel.add(clearDataButton, c);
+        clearDataButton.addActionListener(actionEvent -> {
+            ArrayList<String> appIds = new ArrayList<String>();
+            List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID);
+            if(androidFacets!=null){
+                for(AndroidFacet facet : androidFacets){
+                    if(!facet.isLibraryProject()){
+                        AndroidModel androidModel = facet.getAndroidModel();
+                        if(androidModel!=null) {
+                            String appId = androidModel.getApplicationId();
+                            appIds.add(appId);
+                        }
+                    }
+                }
+            }
+
+            ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
+                ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
+                userAction = true;
+                for(String appId : appIds){
+                    executeShellCommand("pm clear "+appId, false);
+                }
+                userAction = false;
+            }, resourceBundle.getString("processing.title"), false, null);
+        });
 
         JPanel framePanel = new JPanel(new BorderLayout());
         framePanel.add(panel, BorderLayout.NORTH);
-
-        disableAll();
-
-        Content content = contentFactory.createContent(framePanel, "", false);
-        toolWindow.getContentManager().addContent(content);
+        return framePanel;
     }
 
     private void updateFromDevice() {
@@ -334,13 +364,12 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
                 for(LocaleData ld : LOCALES){
                     if(deviceLocale!=null && deviceLocale.startsWith(ld.language) && deviceLocale.endsWith(ld.county)) {
                         final int toSelect = i;
-                        SwingUtilities.invokeLater(() -> localeCHooser.setSelectedIndex(toSelect));
+                        SwingUtilities.invokeLater(() -> localeChooser.setSelectedIndex(toSelect));
 
                         break;
                     }
                     i++;
                 }
-
 
                 enableAll();
             } else {
@@ -360,27 +389,26 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
     private void disableAll() {
         showLayoutBounds.setEnabled(false);
-        localeCHooser.setEnabled(false);
+        localeChooser.setEnabled(false);
         goToActivityButton.setEnabled(false);
         inputOnDeviceButton.setEnabled(false);
+        clearDataButton.setEnabled(false);
     }
 
     private void enableAll() {
         showLayoutBounds.setEnabled(true);
-        localeCHooser.setEnabled(true);
+        localeChooser.setEnabled(true);
         goToActivityButton.setEnabled(true);
         inputOnDeviceButton.setEnabled(true);
+        clearDataButton.setEnabled(true);
     }
 
     private void setupDevice(final IDevice selectedDevice) {
-
         try {
             installEnablerApk(selectedDevice);
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
     }
 
     @SuppressWarnings("unchecked")
@@ -392,6 +420,10 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
             devicesList.add(device.toString());
         }
         devices.setModel(new DefaultComboBoxModel<>(devicesList));
+
+        if(devicesList.size()==1){
+            disableAll();
+        }
     }
 
     private String executeShellCommand(String cmd, boolean doPoke) {
