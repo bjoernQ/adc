@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.intellij.facet.ProjectFacetManager;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.components.ServiceManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
@@ -141,6 +142,8 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
     private ComboBox localeChooser;
     private boolean userAction = false;
     private JButton goToActivityButton;
+
+    private final Storage storage = ServiceManager.getService(Storage.class);
 
     public ToolWindowFactory() {
     }
@@ -296,9 +299,11 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         panel.add(inputOnDeviceButton, c);
 
         inputOnDeviceButton.addActionListener(e -> {
-            final String text2send = Messages.showMultilineInputDialog(project, resourceBundle.getString("send_text.message"), resourceBundle.getString("send_text.title"),"",Messages.getQuestionIcon(), null);
+            final String text2send = Messages.showMultilineInputDialog(project, resourceBundle.getString("send_text.message"), resourceBundle.getString("send_text.title"), storage.getLastSentText(),Messages.getQuestionIcon(), null);
 
             if(text2send!=null) {
+                storage.setLastSentText(text2send);
+
                 ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
                     ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
                     userAction = true;

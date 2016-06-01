@@ -28,7 +28,8 @@
 
   <extensions defaultExtensionNs="com.intellij">
     <!-- Add your extensions here-->
-      <toolWindow id="ADC" icon="/de/mobilej/plugin/adc/plus.png" anchor="right" factoryClass="de.mobilej.plugin.adc.ToolWindowFactory"/>
+    <applicationService serviceImplementation="de.mobilej.plugin.adc.Storage"/>
+    <toolWindow id="ADC" icon="/de/mobilej/plugin/adc/plus.png" anchor="right" factoryClass="de.mobilej.plugin.adc.ToolWindowFactory"/>
   </extensions>
 
   <application-components>
