@@ -6,6 +6,7 @@ An Android Studio plugin to control your development devices and emulators. Curr
 - Change the locale of the device
 - Open the currently active activity in your IDE (if the project contains that class)
 - Send text to the device (simulate keyboard input)
+- Clear Data (for all apps contained in current project)
 
 More features to come.
 
