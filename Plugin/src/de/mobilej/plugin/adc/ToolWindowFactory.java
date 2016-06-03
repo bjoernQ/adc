@@ -44,6 +44,10 @@ import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
+import org.xmlpull.v1.util.XmlPullUtil;
 
 import javax.swing.*;
 import java.awt.*;
@@ -53,10 +57,10 @@ import java.text.MessageFormat;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 /**
  * Android Device Controller Plugin for Android Studio
- *
  */
 public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFactory {
 
@@ -69,10 +73,10 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         LineReader lr = null;
         try {
             InputStream is = ToolWindowFactory.class.getResourceAsStream("/de/mobilej/plugin/adc/locales.txt");
-            lr = new LineReader(new InputStreamReader(is));
+            lr = new LineReader(new InputStreamReader(is, "UTF-8"));
             String line = null;
             while ((line = lr.readLine()) != null) {
-                if(line.indexOf("_")>0 && line.indexOf("[")>0) {
+                if (line.indexOf("_") > 0 && line.indexOf("[") > 0) {
                     String lang = line.substring(0, line.indexOf("_"));
                     String cntry = line.substring(line.indexOf("_") + 1, line.indexOf(" "));
                     String desc = line.substring(line.indexOf("[") + 1, line.length() - 1);
@@ -80,7 +84,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
                     data.add(ld);
                 }
             }
-        } catch(IOException ioe){
+        } catch (IOException ioe) {
             // ignored
         }
         LOCALES = data.toArray(new LocaleData[data.size()]);
@@ -92,20 +96,24 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
     private JButton clearDataButton;
 
 
-    private class StringShellOutputReceiver implements IShellOutputReceiver {
+    private static class StringShellOutputReceiver implements IShellOutputReceiver {
         private StringBuffer result = new StringBuffer();
 
         void reset() {
-            result.delete(0,result.length());
+            result.delete(0, result.length());
         }
 
-        String getResult(){
+        String getResult() {
             return result.toString();
         }
 
         @Override
         public void addOutput(byte[] bytes, int i, int i1) {
-            result.append(new String(bytes,i,i1));
+            try {
+                result.append(new String(bytes, i, i1, "UTF-8"));
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
@@ -227,50 +235,50 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
 
         localeChooser = new ComboBox(LOCALES);
-        c.gridx=0;
-        c.gridy=2;
-        c.gridwidth=2;
+        c.gridx = 0;
+        c.gridy = 2;
+        c.gridwidth = 2;
         panel.add(localeChooser, c);
 
         localeChooser.addActionListener(e -> {
             final LocaleData ld = (LocaleData) localeChooser.getSelectedItem();
-            if(ld==null){
+            if (ld == null) {
                 return;
             }
 
             ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
                 ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
                 userAction = true;
-                executeShellCommand("am start -a SETMYLOCALE --es language "+ld.language+" --es country "+ld.county,false);
+                executeShellCommand("am start -a SETMYLOCALE --es language " + ld.language + " --es country " + ld.county, false);
                 userAction = false;
             }, resourceBundle.getString("setting.values.title"), false, null);
         });
 
 
         goToActivityButton = new JButton(resourceBundle.getString("button.goto_activity"));
-        c.gridx=0;
-        c.gridy=3;
-        c.gridwidth=2;
+        c.gridx = 0;
+        c.gridy = 3;
+        c.gridwidth = 2;
         panel.add(goToActivityButton, c);
 
         goToActivityButton.addActionListener(e -> ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
             ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
             userAction = true;
-            final String result = executeShellCommand("dumpsys activity top",false);
+            final String result = executeShellCommand("dumpsys activity top", false);
             userAction = false;
 
-            if(result==null){
+            if (result == null) {
                 return;
             }
 
             ApplicationManager.getApplication().invokeLater(() -> {
 
-                String activity = result.substring(result.indexOf("ACTIVITY ")+9);
+                String activity = result.substring(result.indexOf("ACTIVITY ") + 9);
                 activity = activity.substring(0, activity.indexOf(" "));
-                String pkg = activity.substring(0,activity.indexOf("/"));
-                String clz = activity.substring(activity.indexOf("/")+1);
-                if(clz.startsWith(".")){
-                    clz = pkg+clz;
+                String pkg = activity.substring(0, activity.indexOf("/"));
+                String clz = activity.substring(activity.indexOf("/") + 1);
+                if (clz.startsWith(".")) {
+                    clz = pkg + clz;
                 }
 
                 GlobalSearchScope scope = GlobalSearchScope.allScope(project);
@@ -283,7 +291,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
                     //Jump there
                     new OpenFileDescriptor(project, vf, 1, 0).navigateInEditor(project, false);
                 } else {
-                    Messages.showMessageDialog(project, clz, resourceBundle.getString("error.class_not_found"),  Messages.getWarningIcon());
+                    Messages.showMessageDialog(project, clz, resourceBundle.getString("error.class_not_found"), Messages.getWarningIcon());
                     return;
                 }
 
@@ -293,40 +301,39 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
 
         inputOnDeviceButton = new JButton(resourceBundle.getString("button.input_on_device"));
-        c.gridx=0;
-        c.gridy=4;
-        c.gridwidth=2;
+        c.gridx = 0;
+        c.gridy = 4;
+        c.gridwidth = 2;
         panel.add(inputOnDeviceButton, c);
 
         inputOnDeviceButton.addActionListener(e -> {
-            final String text2send = Messages.showMultilineInputDialog(project, resourceBundle.getString("send_text.message"), resourceBundle.getString("send_text.title"), storage.getLastSentText(),Messages.getQuestionIcon(), null);
+            final String text2send = Messages.showMultilineInputDialog(project, resourceBundle.getString("send_text.message"), resourceBundle.getString("send_text.title"), storage.getLastSentText(), Messages.getQuestionIcon(), null);
 
-            if(text2send!=null) {
+            if (text2send != null) {
                 storage.setLastSentText(text2send);
 
                 ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
                     ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
                     userAction = true;
-                    String escaped = text2send.replace("\\", "\\\\").replace("\"", "\\");
-                    executeShellCommand("input text \"" + escaped + "\"", false);
+                    doInputOnDevice(text2send);
                     userAction = false;
-                }, resourceBundle.getString("setting.values.title"), false, null);
+                }, resourceBundle.getString("processing.title"), false, null);
             }
         });
 
         clearDataButton = new JButton(resourceBundle.getString("button.clear_data"));
-        c.gridx=0;
-        c.gridy=5;
-        c.gridwidth=2;
+        c.gridx = 0;
+        c.gridy = 5;
+        c.gridwidth = 2;
         panel.add(clearDataButton, c);
         clearDataButton.addActionListener(actionEvent -> {
             ArrayList<String> appIds = new ArrayList<String>();
             List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID);
-            if(androidFacets!=null){
-                for(AndroidFacet facet : androidFacets){
-                    if(!facet.isLibraryProject()){
+            if (androidFacets != null) {
+                for (AndroidFacet facet : androidFacets) {
+                    if (!facet.isLibraryProject()) {
                         AndroidModel androidModel = facet.getAndroidModel();
-                        if(androidModel!=null) {
+                        if (androidModel != null) {
                             String appId = androidModel.getApplicationId();
                             appIds.add(appId);
                         }
@@ -337,8 +344,8 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
             ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
                 ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
                 userAction = true;
-                for(String appId : appIds){
-                    executeShellCommand("pm clear "+appId, false);
+                for (String appId : appIds) {
+                    executeShellCommand("pm clear " + appId, false);
                 }
                 userAction = false;
             }, resourceBundle.getString("processing.title"), false, null);
@@ -349,6 +356,188 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         return framePanel;
     }
 
+    private void doInputOnDevice(String text2send) {
+        /*
+        Syntax:
+        `tap 130 150` -> sends "input tap 130 150" .... really just "input " and append the command
+        `tap @my.package:id/text` -> first find the center of the given res-id (uiautomator dump /dev/tty)
+        `tap @*:id/text` -> support wildcards
+        `swipe 10 20 30 40` -> simple swipe (px)
+        `swipe @*:id/my_id[10,20] @*:id/my_id[50,60]` -> swipe from 10% of x of given view, 20% of y of given view to 50% of x of the view to 60% of y of the view
+        `tap @*:id/button[20,30]` syntax also works in general for @id things
+        ``` -> escapes `
+        `
+        ` -> new line which is not sent
+        `#500` -> wait 500 milliseconds
+        */
+
+        text2send = text2send.replace("```", "\u2764");
+        text2send = text2send + "`";
+        StringTokenizer tokenizer = new StringTokenizer(text2send, "`", true);
+        boolean inCommand = false;
+        String plainText = null;
+        String commandText = null;
+        while (tokenizer.hasMoreElements()) {
+            String next = tokenizer.nextToken();
+
+            if ("`".equals(next)) {
+                if (!inCommand) {
+                    inCommand = true;
+
+                    if (plainText != null) {
+                        String escaped = plainText.replace("\"", "\\\"").replace("\u2764", "\\`");
+                        executeShellCommand("input text \"" + escaped + "\"", false);
+
+                        plainText = null;
+                        commandText = null;
+                    }
+                } else {
+                    inCommand = false;
+                    if (commandText != null) {
+                        commandText = commandText.replace("\r", "").replace("\n", "");
+                        if (commandText.length() > 0) {
+                            if (commandText.startsWith("#")) {
+                                long timeToWait = Long.parseLong(commandText.substring(1));
+                                try {
+                                    Thread.sleep(timeToWait);
+                                } catch (InterruptedException e) {
+                                    // do nothing
+                                }
+                            } else {
+                                if (commandText.contains("@")) {
+                                    commandText = processViewIds(commandText);
+                                }
+
+                                executeShellCommand("input " + commandText, false);
+                            }
+                        }
+                        commandText = null;
+                        plainText = null;
+                    }
+                }
+            } else {
+                if (inCommand) {
+                    commandText = next;
+                    plainText = null;
+                } else {
+                    plainText = next;
+                    commandText = null;
+                }
+            }
+        }
+
+    }
+
+    private String processViewIds(String commandText) {
+        /*
+        @<id, supporting wildcards, if no ":" contained it will prepend "*:"> defaults to center of view
+        @<id, supporting wildcards, if no ":" contained it will prepend "*:">[percentX,percentY] percentX/Y in view bounds
+         */
+        String views = executeShellCommand("uiautomator dump /dev/tty", false);
+        views = views.substring(0, views.lastIndexOf(">") + 1);
+        HashMap<String, Rectangle> resIdToBoundsMap = new HashMap<>();
+        try {
+            XmlPullParser xpp = XmlPullParserFactory.newInstance().newPullParser();
+            xpp.setInput(new StringReader(views));
+
+            int eventType;
+            while ((eventType = xpp.getEventType()) != XmlPullParser.END_DOCUMENT) {
+                if (eventType == XmlPullParser.START_TAG) {
+                    if ("node".equals(xpp.getName())) {
+                        String bounds = XmlPullUtil.getAttributeValue(xpp, "bounds");
+                        String resId = XmlPullUtil.getAttributeValue(xpp, "resource-id");
+
+                        if (resId != null && resId.length() > 0) {
+                            bounds = bounds.replace("][", ",");
+                            bounds = bounds.replace("[", "");
+                            bounds = bounds.replace("]", "");
+                            String[] coords = bounds.split(",");
+                            int x1 = Integer.parseInt(coords[0]);
+                            int y1 = Integer.parseInt(coords[1]);
+                            int x2 = Integer.parseInt(coords[2]);
+                            int y2 = Integer.parseInt(coords[3]);
+
+                            Rectangle rect = new Rectangle(x1, y1, x2 - x1, y2 - y1);
+                            resIdToBoundsMap.put(resId, rect);
+                        }
+                    }
+                }
+                xpp.next();
+
+            }
+
+        } catch (XmlPullParserException | IOException e) {
+            e.printStackTrace();
+        }
+
+        while (commandText.contains("@")) {
+            int idx = commandText.indexOf("@");
+            StringBuilder sb = new StringBuilder();
+            int i = idx;
+            while (i < commandText.length() && commandText.charAt(i) > ' ') {
+                sb.append(commandText.charAt(i));
+                i++;
+            }
+
+            String calculatedCoords = "0 0";
+            String resIdToMatch = sb.substring(1);
+            double percentX = 0.5;
+            double percentY = 0.5;
+
+            if (resIdToMatch.contains("[") && resIdToMatch.contains("]")) {
+                String percentPart = resIdToMatch.substring(resIdToMatch.indexOf("[") + 1, resIdToMatch.indexOf("]"));
+                resIdToMatch = resIdToMatch.substring(0, resIdToMatch.indexOf("["));
+                String[] percentParts = percentPart.split(",");
+                try {
+                    percentX = Double.parseDouble(percentParts[0]) / 100;
+                    percentY = Double.parseDouble(percentParts[1]) / 100;
+                } catch (NumberFormatException nfe) {
+                    nfe.printStackTrace();
+                }
+            }
+
+            Rectangle rect = new Rectangle(0, 0, 0, 0);
+            if (resIdToBoundsMap.containsKey(resIdToMatch)) {
+                rect = resIdToBoundsMap.get(resIdToMatch);
+            } else {
+                if (!resIdToMatch.contains(":")) {
+                    resIdToMatch = "*:" + resIdToMatch;
+                }
+
+                for (Map.Entry<String, Rectangle> entry : resIdToBoundsMap.entrySet()) {
+                    if (wildcardMatch(resIdToMatch, entry.getKey())) {
+                        rect = entry.getValue();
+                        break;
+                    }
+                }
+            }
+            calculatedCoords = "" + (int) (rect.x + rect.width * percentX) + " " + (int) (rect.y + rect.height * percentY);
+
+            commandText = commandText.substring(0, idx) + calculatedCoords + commandText.substring(idx + sb.length());
+        }
+
+        return commandText;
+    }
+
+    public static boolean wildcardMatch(final String toMatch, final String value) {
+        StringBuilder patternStringBuilder = new StringBuilder();
+        for (final char c : toMatch.toCharArray()) {
+            switch (c) {
+                case '?':
+                    patternStringBuilder.append(".?");
+                    break;
+                case '*':
+                    patternStringBuilder.append(".*");
+                    break;
+                default:
+                    patternStringBuilder.append(Pattern.quote(String.valueOf(c)));
+                    break;
+            }
+        }
+        Pattern pattern = Pattern.compile(patternStringBuilder.toString());
+        return pattern.matcher(value).matches();
+    }
+
     private void updateFromDevice() {
         ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
             ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
@@ -357,17 +546,17 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
                 setupDevice(selectedDevice);
 
-                String debugLayoutProperty = getSysPropFromDevice("debug.layout",selectedDevice);
+                String debugLayoutProperty = getSysPropFromDevice("debug.layout", selectedDevice);
                 if ("true".equals(debugLayoutProperty)) {
                     showLayoutBounds.setSelected(true);
                 } else {
                     showLayoutBounds.setSelected(false);
                 }
 
-                String deviceLocale = getSysPropFromDevice("persist.sys.locale",selectedDevice);
+                String deviceLocale = getSysPropFromDevice("persist.sys.locale", selectedDevice);
                 int i = 0;
-                for(LocaleData ld : LOCALES){
-                    if(deviceLocale!=null && deviceLocale.startsWith(ld.language) && deviceLocale.endsWith(ld.county)) {
+                for (LocaleData ld : LOCALES) {
+                    if (deviceLocale != null && deviceLocale.startsWith(ld.language) && deviceLocale.endsWith(ld.county)) {
                         final int toSelect = i;
                         SwingUtilities.invokeLater(() -> localeChooser.setSelectedIndex(toSelect));
 
@@ -376,14 +565,14 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
                     i++;
                 }
 
-                enableAll();
+                SwingUtilities.invokeLater(() -> enableAll());
             } else {
-                disableAll();
+                SwingUtilities.invokeLater(() -> disableAll());
             }
         }, resourceBundle.getString("initializing.device.message"), false, null);
     }
 
-    private String getSysPropFromDevice(String propName, IDevice selectedDevice){
+    private String getSysPropFromDevice(String propName, IDevice selectedDevice) {
         try {
             return selectedDevice.getSystemProperty(propName).get();
         } catch (InterruptedException | ExecutionException e) {
@@ -426,7 +615,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         }
         devices.setModel(new DefaultComboBoxModel<>(devicesList));
 
-        if(devicesList.size()==1){
+        if (devicesList.size() == 1) {
             disableAll();
         }
     }
@@ -436,7 +625,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
             return null;
         }
 
-        if(devices.getSelectedIndex()==0){
+        if (devices.getSelectedIndex() == 0) {
             return null;
         }
 
@@ -449,7 +638,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
                     rcv.reset();
                     device.executeShellCommand(cmd, rcv);
                     res = rcv.getResult();
-                    if(doPoke) {
+                    if (doPoke) {
                         device.executeShellCommand("am start -a POKESYSPROPS", rcv);
                     }
                 } catch (TimeoutException | AdbCommandRejectedException | ShellCommandUnresponsiveException | IOException e1) {
@@ -465,8 +654,9 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         // TODO no need to create the tmp file over and over again
         File tmpfile = File.createTempFile("enabler", "apk");
         FileOutputStream fos = null;
+        InputStream is = null;
         try {
-            InputStream is = getClass().getResourceAsStream("/de/mobilej/plugin/adc/enabler.apk");
+            is = getClass().getResourceAsStream("/de/mobilej/plugin/adc/enabler.apk");
             fos = new FileOutputStream(tmpfile);
             byte[] buffer = new byte[4096];
             int len = 0;
@@ -478,6 +668,9 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
                 fos.flush();
                 fos.close();
             }
+            if (is != null) {
+                is.close();
+            }
         }
 
         try {
@@ -488,7 +681,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
         try {
             device.executeShellCommand("pm grant mobilej.de.systemproppoker android.permission.CHANGE_CONFIGURATION", rcv);
-        } catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
