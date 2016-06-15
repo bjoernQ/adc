@@ -173,13 +173,8 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
             public void onSuccess(@Nullable AndroidDebugBridge bridge) {
                 ToolWindowFactory.this.adBridge = bridge;
                 Logger.getInstance(AndroidToolWindowFactory.class).info("Successfully obtained debug bridge");
-
                 AndroidDebugBridge.addDeviceChangeListener(deviceChangeListener);
-
-                devices.removeActionListener(deviceSelectedListener);
                 updateDeviceComboBox();
-                devices.addActionListener(deviceSelectedListener);
-
             }
 
             @Override
@@ -607,6 +602,9 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
     @SuppressWarnings("unchecked")
     private void updateDeviceComboBox() {
+        devices.removeActionListener(deviceSelectedListener);
+        String selectedDevice = (String) devices.getSelectedItem();
+
         IDevice[] devs = adBridge.getDevices();
         Vector devicesList = new Vector();
         devicesList.add("-- none --");
@@ -617,7 +615,18 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
         if (devicesList.size() == 1) {
             disableAll();
+        } else {
+            devices.setSelectedItem(selectedDevice);
+
+            devices.setSelectedItem(devices.getSelectedItem());
+            if (devices.getSelectedIndex() == 0) {
+                disableAll();
+            } else {
+                enableAll();
+            }
         }
+
+        devices.addActionListener(deviceSelectedListener);
     }
 
     private String executeShellCommand(String cmd, boolean doPoke) {
