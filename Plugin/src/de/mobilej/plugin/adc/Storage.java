@@ -30,6 +30,7 @@ import org.jetbrains.annotations.Nullable;
 public class Storage implements PersistentStateComponent<Storage> {
 
     private String lastSentText = "";
+    private String installedOnDevices;
 
     @Nullable
     @Override
@@ -50,4 +51,11 @@ public class Storage implements PersistentStateComponent<Storage> {
         return lastSentText;
     }
 
+    public String getInstalledOnDevices() {
+        return installedOnDevices;
+    }
+
+    public void setInstalledOnDevices(String installedOnDevices) {
+        this.installedOnDevices = installedOnDevices;
+    }
 }

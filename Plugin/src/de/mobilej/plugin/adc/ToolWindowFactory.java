@@ -268,7 +268,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
             ApplicationManager.getApplication().invokeLater(() -> {
 
-                String activity = result.substring(result.indexOf("ACTIVITY ") + 9);
+                String activity = result.substring(result.lastIndexOf("ACTIVITY ") + 9);
                 activity = activity.substring(0, activity.indexOf(" "));
                 String pkg = activity.substring(0, activity.indexOf("/"));
                 String clz = activity.substring(activity.indexOf("/") + 1);
@@ -380,9 +380,19 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
                     inCommand = true;
 
                     if (plainText != null) {
-                        String escaped = plainText.replace("\"", "\\\"").replace("\u2764", "\\`");
-                        executeShellCommand("input text \"" + escaped + "\"", false);
 
+                        StringTokenizer tokenizer2 = new StringTokenizer(plainText," \t\r\n", true);
+                        while(tokenizer2.hasMoreElements()) {
+                            String part = tokenizer2.nextToken();
+                            String escaped = part.replace("\"", "\\\"").replace("\u2764", "\\`");
+                            executeShellCommand("input text \"" + escaped + "\"", false);
+
+                            try {
+                                Thread.sleep(400); // wait a bit - give the device some time to process
+                            } catch (InterruptedException e) {
+                                //ignored
+                            }
+                        }
                         plainText = null;
                         commandText = null;
                     }
@@ -421,6 +431,11 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
             }
         }
 
+        try {
+            Thread.sleep(800); // wait a bit - give the device some time to process
+        } catch (InterruptedException e) {
+            //ignored
+        }
     }
 
     private String processViewIds(String commandText) {
@@ -660,6 +675,16 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
     }
 
     private void installEnablerApk(IDevice device) throws IOException {
+        String serial = "<"+device.getSerialNumber()+">";
+        String alreadyInstalledOn = storage.getInstalledOnDevices();
+        if(alreadyInstalledOn==null){
+            alreadyInstalledOn = "";
+        }
+        if(alreadyInstalledOn.contains(serial)){
+            return;
+        }
+        storage.setInstalledOnDevices(alreadyInstalledOn+serial);
+
         // TODO no need to create the tmp file over and over again
         File tmpfile = File.createTempFile("enabler", "apk");
         FileOutputStream fos = null;
@@ -683,7 +708,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         }
 
         try {
-            device.installPackage(tmpfile.getAbsolutePath(), false);
+            device.installPackage(tmpfile.getAbsolutePath(), true);
         } catch (InstallException ie) {
             ie.printStackTrace();
         }

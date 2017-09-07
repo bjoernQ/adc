@@ -1,7 +1,7 @@
 <idea-plugin version="2">
     <id>de.mobilej.adc.plugin.id</id>
     <name>Android Device Controller</name>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <vendor email="info@mobile-j.de" url="http://github.com/bjoernQ/adc">http://github.com/bjoernQ/adc</vendor>
 
     <depends>com.intellij.modules.androidstudio</depends>
@@ -13,7 +13,7 @@
     ]]></description>
 
     <change-notes><![CDATA[
-      Keep selected device, much more powerful input on device functionality
+      Faster connect to known devices, more reliable "Input on Device"
     ]]>
     </change-notes>
 
@@ -29,6 +29,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here-->
         <applicationService serviceImplementation="de.mobilej.plugin.adc.Storage"/>
+        <projectConfigurable displayName="ADC" instance="de.mobilej.plugin.adc.Configuration"/>
         <toolWindow id="ADC" icon="/de/mobilej/plugin/adc/plus.png" anchor="right"
                     factoryClass="de.mobilej.plugin.adc.ToolWindowFactory"/>
     </extensions>
