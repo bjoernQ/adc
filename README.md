@@ -7,6 +7,7 @@ An Android Studio plugin to control your development devices and emulators. Curr
 - Open the currently active activity in your IDE (if the project contains that class)
 - Send text to the device (simulate keyboard input)
 - Clear Data (for all apps contained in current project)
+- Kill process of running app (great for testing "app killed in background" scenarios)
 
 More features to come.
 
