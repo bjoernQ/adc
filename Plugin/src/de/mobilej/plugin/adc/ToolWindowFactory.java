@@ -94,6 +94,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
     private AndroidDebugBridge adBridge;
     private JButton inputOnDeviceButton;
     private JButton clearDataButton;
+    private JButton killProcessButton;
 
 
     private static class StringShellOutputReceiver implements IShellOutputReceiver {
@@ -341,6 +342,64 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
                 userAction = true;
                 for (String appId : appIds) {
                     executeShellCommand("pm clear " + appId, false);
+                }
+                userAction = false;
+            }, resourceBundle.getString("processing.title"), false, null);
+        });
+
+        killProcessButton = new JButton(resourceBundle.getString("button.kill_process"));
+        c.gridx = 0;
+        c.gridy = 6;
+        c.gridwidth = 2;
+        panel.add(killProcessButton, c);
+        killProcessButton.addActionListener(actionEvent -> {
+            ArrayList<String> appIds = new ArrayList<String>();
+            List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID);
+            if (androidFacets != null) {
+                for (AndroidFacet facet : androidFacets) {
+                    if (!facet.isLibraryProject()) {
+                        AndroidModel androidModel = facet.getAndroidModel();
+                        if (androidModel != null) {
+                            String appId = androidModel.getApplicationId();
+                            appIds.add(appId);
+                        }
+                    }
+                }
+            }
+
+            ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
+                ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
+                userAction = true;
+                for (String appId : appIds) {
+                    String res = executeShellCommand("run-as "+appId+" ps -A", false);
+                    if(res!=null) {
+                        LineNumberReader lnr = new LineNumberReader(new StringReader(res));
+                        try {
+                            String pid = null;
+                            String line = lnr.readLine();
+                            while(line!=null){
+                                line = lnr.readLine();
+                                if(line!=null){
+                                    if(line.contains(appId)){
+                                        StringTokenizer toker = new StringTokenizer(line, " \t");
+                                        if(toker.hasMoreTokens()){
+                                            toker.nextToken();
+                                            if(toker.hasMoreTokens()) {
+                                                pid = toker.nextToken();
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if(pid!=null){
+                                res = executeShellCommand("run-as "+appId+" kill "+pid, false);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
                 userAction = false;
             }, resourceBundle.getString("processing.title"), false, null);
@@ -597,6 +656,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         goToActivityButton.setEnabled(false);
         inputOnDeviceButton.setEnabled(false);
         clearDataButton.setEnabled(false);
+        killProcessButton.setEnabled(false);
     }
 
     private void enableAll() {
@@ -605,6 +665,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         goToActivityButton.setEnabled(true);
         inputOnDeviceButton.setEnabled(true);
         clearDataButton.setEnabled(true);
+        killProcessButton.setEnabled(true);
     }
 
     private void setupDevice(final IDevice selectedDevice) {
