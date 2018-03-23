@@ -1,7 +1,7 @@
 de_DE [German (Germany)]
 en_US [English (United States)]
 en_XA [English (Pseudo Localisation ltr)]
-ar_XB [English (Pseudo Localisation rtl)]
+ar_XB [Arabic (Pseudo Localisation rtl)]
 af_NA [Afrikaans (Namibia)]
 af_ZA [Afrikaans (South Africa)]
 agq_CM [Aghem (Cameroon)]
