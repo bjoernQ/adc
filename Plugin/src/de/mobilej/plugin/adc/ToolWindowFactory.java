@@ -14,14 +14,8 @@
 package de.mobilej.plugin.adc;
 
 import com.android.ddmlib.*;
-import com.android.tools.idea.ddms.EdtExecutor;
-import com.android.tools.idea.ddms.adb.AdbService;
 import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.monitor.AndroidToolWindowFactory;
-import com.google.common.io.LineReader;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.intellij.facet.ProjectFacetManager;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.ServiceManager;
@@ -43,7 +37,6 @@ import com.intellij.ui.content.ContentFactory;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -70,10 +63,10 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
     static {
         ArrayList<LocaleData> data = new ArrayList<>();
-        LineReader lr = null;
+        BufferedReader lr = null;
         try {
             InputStream is = ToolWindowFactory.class.getResourceAsStream("/de/mobilej/plugin/adc/locales.txt");
-            lr = new LineReader(new InputStreamReader(is, "UTF-8"));
+            lr = new BufferedReader(new InputStreamReader(is, "UTF-8"));
             String line = null;
             while ((line = lr.readLine()) != null) {
                 if (line.indexOf("_") > 0 && line.indexOf("[") > 0) {
@@ -163,11 +156,23 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         JPanel framePanel = createPanel(project);
         disableAll();
 
-        final File adb = AndroidSdkUtils.getAdb(project);
+        AndroidDebugBridge adb = AndroidSdkUtils.getDebugBridge(project);
         if (adb == null) {
             return;
         }
 
+        if(adb.isConnected()){
+            ToolWindowFactory.this.adBridge = adb;
+            Logger.getInstance(AndroidToolWindowFactory.class).info("Successfully obtained debug bridge");
+            AndroidDebugBridge.addDeviceChangeListener(deviceChangeListener);
+            updateDeviceComboBox();
+        } else {
+            Logger.getInstance(AndroidToolWindowFactory.class).info("Unable to obtain debug bridge");
+            String msg = MessageFormat.format(resourceBundle.getString("error.message.adb"), "");
+            Messages.showErrorDialog(msg, resourceBundle.getString("error.title.adb"));
+        }
+
+        /*
         ListenableFuture<AndroidDebugBridge> future = AdbService.getInstance().getDebugBridge(adb);
         Futures.addCallback(future, new FutureCallback<AndroidDebugBridge>() {
             @Override
@@ -188,7 +193,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
                 Messages.showErrorDialog(msg, resourceBundle.getString("error.title.adb"));
             }
         }, EdtExecutor.INSTANCE);
-
+*/
         Content content = contentFactory.createContent(framePanel, "", false);
         toolWindow.getContentManager().addContent(content);
     }
