@@ -15,7 +15,6 @@ package de.mobilej.plugin.adc;
 
 import com.android.ddmlib.*;
 import com.android.tools.idea.model.AndroidModel;
-import com.android.tools.idea.monitor.AndroidToolWindowFactory;
 import com.intellij.facet.ProjectFacetManager;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.ServiceManager;
@@ -163,37 +162,15 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
 
         if(adb.isConnected()){
             ToolWindowFactory.this.adBridge = adb;
-            Logger.getInstance(AndroidToolWindowFactory.class).info("Successfully obtained debug bridge");
+            Logger.getInstance(ToolWindowFactory.class).info("Successfully obtained debug bridge");
             AndroidDebugBridge.addDeviceChangeListener(deviceChangeListener);
             updateDeviceComboBox();
         } else {
-            Logger.getInstance(AndroidToolWindowFactory.class).info("Unable to obtain debug bridge");
+            Logger.getInstance(ToolWindowFactory.class).info("Unable to obtain debug bridge");
             String msg = MessageFormat.format(resourceBundle.getString("error.message.adb"), "");
             Messages.showErrorDialog(msg, resourceBundle.getString("error.title.adb"));
         }
 
-        /*
-        ListenableFuture<AndroidDebugBridge> future = AdbService.getInstance().getDebugBridge(adb);
-        Futures.addCallback(future, new FutureCallback<AndroidDebugBridge>() {
-            @Override
-            public void onSuccess(@Nullable AndroidDebugBridge bridge) {
-                ToolWindowFactory.this.adBridge = bridge;
-                Logger.getInstance(AndroidToolWindowFactory.class).info("Successfully obtained debug bridge");
-                AndroidDebugBridge.addDeviceChangeListener(deviceChangeListener);
-                updateDeviceComboBox();
-            }
-
-            @Override
-            public void onFailure(@NotNull Throwable t) {
-                // If we cannot connect to ADB in a reasonable amount of time (10 seconds timeout in AdbService), then something is seriously
-                // wrong. The only identified reason so far is that some machines have incompatible versions of adb that were already running.
-                // e.g. Genymotion, some HTC flashing software, Ubuntu's adb package may all conflict with the version of adb in the SDK.
-                Logger.getInstance(AndroidToolWindowFactory.class).info("Unable to obtain debug bridge", t);
-                String msg = MessageFormat.format(resourceBundle.getString("error.message.adb"), adb.getAbsolutePath());
-                Messages.showErrorDialog(msg, resourceBundle.getString("error.title.adb"));
-            }
-        }, EdtExecutor.INSTANCE);
-*/
         Content content = contentFactory.createContent(framePanel, "", false);
         toolWindow.getContentManager().addContent(content);
     }
