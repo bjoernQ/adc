@@ -183,6 +183,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.NONE;
         c.anchor = GridBagConstraints.LINE_START;
+        c.insets = new Insets(6,0,0,0);
 
         devices = new ComboBox(new String[]{resourceBundle.getString("device.none")});
 
@@ -238,6 +239,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         c.gridx = 0;
         c.gridy = 3;
         c.gridwidth = 2;
+        c.fill = GridBagConstraints.HORIZONTAL;
         panel.add(goToActivityButton, c);
 
         goToActivityButton.addActionListener(e -> ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
@@ -283,6 +285,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         c.gridx = 0;
         c.gridy = 4;
         c.gridwidth = 2;
+        c.fill = GridBagConstraints.HORIZONTAL;
         panel.add(inputOnDeviceButton, c);
 
         inputOnDeviceButton.addActionListener(e -> {
@@ -304,6 +307,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         c.gridx = 0;
         c.gridy = 5;
         c.gridwidth = 2;
+        c.fill = GridBagConstraints.HORIZONTAL;
         panel.add(clearDataButton, c);
         clearDataButton.addActionListener(actionEvent -> {
             ArrayList<String> appIds = new ArrayList<String>();
@@ -332,6 +336,7 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
         c.gridx = 0;
         c.gridy = 6;
         c.gridwidth = 2;
+        c.fill = GridBagConstraints.HORIZONTAL;
         panel.add(killProcessButton, c);
         killProcessButton.addActionListener(actionEvent -> {
             ArrayList<String> appIds = new ArrayList<String>();
