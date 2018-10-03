@@ -34,6 +34,7 @@ import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.android.facet.AndroidFacetConfiguration;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
 import org.xmlpull.v1.XmlPullParser;
@@ -309,12 +310,10 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
             List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID);
             if (androidFacets != null) {
                 for (AndroidFacet facet : androidFacets) {
-                    if (!facet.isLibraryProject()) {
-                        AndroidModel androidModel = facet.getAndroidModel();
-                        if (androidModel != null) {
-                            String appId = androidModel.getApplicationId();
-                            appIds.add(appId);
-                        }
+                    AndroidFacetConfiguration facetConfig = facet.getConfiguration();
+                    if (!facetConfig.isLibraryProject()) {
+                        String appId = facetConfig.getModel().getApplicationId();
+                        appIds.add(appId);
                     }
                 }
             }
@@ -339,8 +338,9 @@ public class ToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFact
             List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID);
             if (androidFacets != null) {
                 for (AndroidFacet facet : androidFacets) {
-                    if (!facet.isLibraryProject()) {
-                        AndroidModel androidModel = facet.getAndroidModel();
+                    AndroidFacetConfiguration facetConfig = facet.getConfiguration();
+                    if (!facetConfig.isLibraryProject()) {
+                        AndroidModel androidModel = facetConfig.getModel();
                         if (androidModel != null) {
                             String appId = androidModel.getApplicationId();
                             appIds.add(appId);

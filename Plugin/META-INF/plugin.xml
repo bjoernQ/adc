@@ -1,7 +1,7 @@
 <idea-plugin version="2">
     <id>de.mobilej.adc.plugin.id</id>
     <name>Android Device Controller</name>
-    <version>1.0.7</version>
+    <version>1.0.8</version>
     <vendor email="info@mobile-j.de" url="http://github.com/bjoernQ/adc">http://github.com/bjoernQ/adc</vendor>
 
     <depends>com.intellij.modules.androidstudio</depends>
@@ -13,12 +13,12 @@
     ]]></description>
 
     <change-notes><![CDATA[
-      Fix for Android Studio 3.3
+      Fix for Android Studio 3.2
     ]]>
     </change-notes>
 
     <!-- please see http://confluence.jetbrains.com/display/IDEADEV/Build+Number+Ranges for description -->
-    <idea-version since-build="173"/>
+    <idea-version since-build="181"/>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.android</depends>
